@@ -1,2 +1,2 @@
 # leolinker
-Automatically convert keywords in LeoGlossary posts into markdown links.
+Automatically convert keywords in LeoGlossary posts on Inleo.io into markdown links.
