@@ -1,0 +1,131 @@
+<!-- add ability to preview and approve links before copying -->
+<!-- Some terms are doubled. Need to ask which ones are correct. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leo Linker</title>
+  <link href="styles.css" rel="stylesheet">
+  <script src="terms.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Leo Linker By @kendewitt</h1>
+    <nav>
+      <ul>
+        <li><a href="#">Home</a></li>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div id="container">
+    <div class="box-container">
+      <textarea id="input-box" placeholder="Type your text here..."></textarea>
+    </div>
+    <div class="box-container">
+      <div id="preview-box"></div>
+      <div id="button-container">
+        <button id="copy-button">Copy to Clipboard</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    const inputBox = document.getElementById("input-box");
+    const previewBox = document.getElementById("preview-box");
+    const copyButton = document.getElementById("copy-button");
+    const sortTermsByLength = (terms) => {
+      return terms.sort((a, b) => b[0].length - a[0].length);
+    };
+    const terms = sortTermsByLength(Terms);
+
+    const escapeRegExp = (string) => {
+      return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    const createLinks = (text) => {
+      let modifiedText = text;
+      const markdownLinks = [];
+      const markdownPlaceholder = "%%MARKDOWN_LINK%%";
+
+      // Temporarily remove markdown links
+      modifiedText = modifiedText.replace(/\[(.*?)\]\((.*?)\)/g, (match) => {
+        markdownLinks.push(match);
+        return markdownPlaceholder;
+      });
+
+      // Perform keyword replacements for the first instance
+      let index = 0;
+      const matchesArray = [];
+
+      terms.forEach(([keyword, url]) => {
+        const escapedKeyword = escapeRegExp(keyword);
+        const regex = new RegExp(`(?<=\\s|^)${escapedKeyword.replace(/ /g, '\\s')}(?=\\s|$)`, 'i');
+
+        modifiedText = modifiedText.replace(regex, () => {
+          matchesArray.push({ keyword, url });
+          return `[[${index++}]]`;
+        });
+      });
+
+      matchesArray.forEach(({ keyword, url }, i) => {
+        const replaceRegex = new RegExp(`\\[\\[${i}\\]\\]`, 'g');
+        modifiedText = modifiedText.replace(replaceRegex, `<a href="${url}" target="_blank">${keyword}</a>`);
+      });
+
+      // Put markdown links back
+      let markdownIndex = 0;
+      modifiedText = modifiedText.replace(new RegExp(markdownPlaceholder, 'g'), () => {
+        return markdownLinks[markdownIndex++];
+      });
+
+      return modifiedText;
+    };
+
+
+    inputBox.addEventListener("input", () => {
+      const modifiedText = createLinks(inputBox.value);
+      previewBox.innerHTML = modifiedText.replace(/\n/g, "<br>");
+    });
+
+    const convertToMarkdown = (html) => {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      const markdown = Array.from(tmp.childNodes).map(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          return node.textContent;
+        } else if (node.tagName === "A") {
+          return `[${node.textContent}](${node.getAttribute("href")})`;
+        } else if (node.tagName === "BR") {
+          return "\n";
+        } else {
+          return "";
+        }
+      }).join("");
+      return markdown;
+    };
+
+    const copyToClipboard = (text) => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    };
+
+    copyButton.addEventListener("click", () => {
+      const markdownText = convertToMarkdown(previewBox.innerHTML);
+      copyToClipboard(markdownText);
+      alert("Copied to clipboard!");
+    });
+
+  </script>
+</body>
+</html>

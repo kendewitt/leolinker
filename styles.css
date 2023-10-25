@@ -1,0 +1,94 @@
+body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #4CAF50;
+  margin-bottom: 5vh;
+  color: white;
+  font-size: 20px;
+  width: 100%;
+}
+
+header h1 {
+  margin-left: 20px; /* Add this line to set the left margin of the h1 element */
+}
+
+nav ul {
+  display: flex;
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav ul li {
+  margin-left: 1.5vw;
+  margin-right: 1.5vw;
+}
+
+nav ul li a {
+  color: white;
+  text-decoration: none;
+}
+
+nav ul li a:hover {
+  text-decoration: underline;
+}
+
+
+.box-container {
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#input-box {
+  width: 100%;
+}
+
+#container {
+  display: flex;
+  justify-content: space-between;
+  width: 80%;
+}
+#input-box, #preview-box {
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+#input-box {
+  height: 500px;
+  resize: none;
+}
+#preview-box {
+  background-color: #f1f1f1;
+  height: 500px;
+  overflow-y: auto;
+}
+#button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+#copy-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  text-decoration: none;
+}
