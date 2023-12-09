@@ -1,14 +1,11 @@
-<!-- add ability to preview and approve links before copying -->
-<!-- Some terms are doubled. Need to ask which ones are correct. -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Leo Linker</title>
-  <link href="styles.css" rel="stylesheet">
-  <script src="terms.js"></script>
+  <link href="/public/styles.css" rel="stylesheet">
+  <script src="/public/common-functions.js"></script>
 </head>
 <body>
 
@@ -16,9 +13,7 @@
     <h1>Leo Linker By @kendewitt</h1>
     <nav>
       <ul>
-        <li><a href="#">Home</a></li>
-        <li><a href="#">About</a></li>
-        <li><a href="#">Contact</a></li>
+        <li><a href="http://kendewitt.com:3000/bulk-upload">Bulk File Upload</a></li>
       </ul>
     </nav>
   </header>
@@ -36,23 +31,93 @@
   </div>
 
 
-  <script>
+  <script defer>
+    //need to handle movies in table with (TV show) or other words in parenthesis
     const inputBox = document.getElementById("input-box");
     const previewBox = document.getElementById("preview-box");
     const copyButton = document.getElementById("copy-button");
-    const sortTermsByLength = (terms) => {
-      return terms.sort((a, b) => b[0].length - a[0].length);
-    };
-    const terms = sortTermsByLength(Terms);
+    let termsArray;
+    let tableHolder;
+    let finalText;
 
-    const escapeRegExp = (string) => {
-      return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
+
+
+
+
+
+
+
+
+
+
+    const loadFileIntoString = (filePath, fs) => {
+      try {
+        // Read the file contents into a string
+        const data = fs.readFileSync(filePath, 'utf8');
+        return data;
+      } catch (err) {
+        // Handle any errors that occur during file reading
+        console.error("Error reading file:", err);
+        return null;
+      }
     };
+
+
+
+
+
+
+
+
+
+
+
+    const removeUnnecessaryTermsFromLinks = (links, unnecessaryLinks, unnecessaryUrls) => {
+      return links.filter(subarray =>
+      !unnecessaryLinks.includes(subarray[0]) &&
+      !unnecessaryUrls.includes(subarray[1])
+      );
+    };
+
+
+
+
+
+
+
+
+
+
+
+    const loadTerms = async () => {
+      try {
+        const response = await fetch('/api/terms');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+
+
+
+
+
+
+
+
 
     const createLinks = (text) => {
       let modifiedText = text;
       const markdownLinks = [];
       const markdownPlaceholder = "%%MARKDOWN_LINK%%";
+      const escapeRegExp = (string) => {
+        return string.replace(/[.*+\-?^${}()|[\]\\]/g, '\\$&');
+      };
 
       // Temporarily remove markdown links
       modifiedText = modifiedText.replace(/\[(.*?)\]\((.*?)\)/g, (match) => {
@@ -64,15 +129,16 @@
       let index = 0;
       const matchesArray = [];
 
-      terms.forEach(([keyword, url]) => {
+      termsArray.forEach(([keyword, url]) => {
         const escapedKeyword = escapeRegExp(keyword);
-        const regex = new RegExp(`(?<=\\s|^)${escapedKeyword.replace(/ /g, '\\s')}(?=\\s|$)`, 'i');
+        const regex = new RegExp(`(?<=\\s|^)${escapedKeyword.replace(/ /g, '\\s')}(?=[.,;:\\s]|$)`, 'i');
 
         modifiedText = modifiedText.replace(regex, () => {
           matchesArray.push({ keyword, url });
           return `[[${index++}]]`;
         });
       });
+
 
       matchesArray.forEach(({ keyword, url }, i) => {
         const replaceRegex = new RegExp(`\\[\\[${i}\\]\\]`, 'g');
@@ -89,10 +155,112 @@
     };
 
 
-    inputBox.addEventListener("input", () => {
-      const modifiedText = createLinks(inputBox.value);
-      previewBox.innerHTML = modifiedText.replace(/\n/g, "<br>");
-    });
+
+
+
+
+
+
+
+
+    const extractAndRemoveTable = (string) => {
+      // Regular expression to match the HTML table and its contents
+      const tableRegex = /<table[\s\S]*?<\/table>/i;
+
+      // Find the table in the string
+      const foundTable = string.match(tableRegex);
+
+      // If a table is found, remove it from the string
+      if (foundTable) {
+        tableHolder = foundTable[0];
+        string = string.replace(tableRegex, '%%table_goes_here%%');
+      } else {
+        // Set tableHolder to null if no table is found
+        tableHolder = null;
+      }
+
+      return string;
+    };
+
+
+
+
+
+
+
+
+
+
+    const markSecondTD = (tableString) => {
+      const rowRegex = /<tr>[\s\S]*?<\/tr>/g; // Regular expression to find each table row
+
+      return tableString.replace(rowRegex, (row) => {
+        // Find all <td> elements in the row
+        let tdElements = row.match(/<td>[\s\S]*?<\/td>/g);
+        // Check if there are at least 2 <td> elements
+        if (tdElements && tdElements.length >= 2) {
+          // Mark the second <td> element
+          tdElements[1] = tdElements[1].replace(/<td>([\s\S]*?)<\/td>/, '<td>%%$1%%</td>');
+
+          // Reconstruct the row with the modified second <td>
+          return row.replace(/<td>[\s\S]*?<\/td>/g, () => tdElements.shift());
+        }
+        return row;
+      });
+    };
+
+
+
+
+
+
+
+
+
+
+    const createTableLinks = (tableString, termsArray) => {
+      let modifiedTable = markSecondTD(tableString);
+
+      termsArray.forEach(([term, url]) => {
+        // Escape special characters for regular expression
+        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Create a regular expression to find the term, ensuring it's exactly within <td> and </td>
+        const regex = new RegExp(`(<td>%%${escapedTerm}%%</td>)`, 'g');
+
+        // Replace the term with the anchor tag, preserving the <td> tags
+        modifiedTable = modifiedTable.replace(regex, `<td><a href="${url}">${term}</a></td>`);
+      });
+
+      modifiedTable = modifiedTable.replace(/%%/g, '');
+
+      return modifiedTable;
+    };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const putTableBack = (inputString) => {
+      return inputString.replace('%%table_goes_here%%', tableHolder);
+    }
+
+
+
+
+
+
+
+
 
     const convertToMarkdown = (html) => {
       const tmp = document.createElement("div");
@@ -111,6 +279,19 @@
       return markdown;
     };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     const copyToClipboard = (text) => {
       const textarea = document.createElement("textarea");
       textarea.value = text;
@@ -120,12 +301,39 @@
       document.body.removeChild(textarea);
     };
 
+
+
+
+
+
+
+    loadTerms().then(data => {
+      termsArray = data;
+      termsArray = removeUnnecessaryTermsFromLinks(data, unnecessary_links, unnecessary_urls)
+    }).catch(error => {
+      console.error('Error:', error);
+    });
+
     copyButton.addEventListener("click", () => {
-      const markdownText = convertToMarkdown(previewBox.innerHTML);
+      let markdownText = extractAndRemoveTable(finalText)
+      markdownText = convertToMarkdown(markdownText);
+      markdownText = putTableBack(markdownText);
       copyToClipboard(markdownText);
       alert("Copied to clipboard!");
     });
 
-  </script>
-</body>
-</html>
+    inputBox.addEventListener("input", () => {
+      let modifiedText = extractAndRemoveTable(inputBox.value);
+      modifiedText = createLinks(modifiedText);
+      if (tableHolder !== null) {
+        tableHolder = createTableLinks(tableHolder, termsArray);
+      }
+      const completeText = putTableBack(modifiedText);
+      // previewBox.innerHTML = completeText.replace(/\n/g, "<br>");
+      previewBox.innerHTML = completeText;
+      finalText = completeText;
+    });
+
+        </script>
+      </body>
+      </html>
